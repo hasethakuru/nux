@@ -1,0 +1,13 @@
+{
+  "name": "nux",
+  "version": "1.0.0",
+  "description": "A custom programming language made with nodejs",
+  "main": "./bin/nux.js",
+  "author": "DJ ",
+  "type": "module",
+  "bin": {
+    "nux": "./bin/nux.js"
+  },
+  "license": "MIT",
+  "private": false
+}
