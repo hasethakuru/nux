@@ -1,1 +1,1 @@
-### Stage - Able to solve some mathematical equations
+### Stage - Able to solve some mathematical expressions
