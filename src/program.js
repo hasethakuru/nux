@@ -1,5 +1,7 @@
 import Lexer from './classes/Lexer.js'
 import Parser from './classes/parser/Parser.js';
+import Interpreter from './classes/interpreter/Interpreter.js';
+import Context from './classes/interpreter/Context.js';
 
 export default (file, tokens) => {
 
@@ -7,15 +9,22 @@ export default (file, tokens) => {
     const lexer = new Lexer(file, tokens);
     const result = lexer.create();
 
-    if(result.error) return console.log(result.errorMessage.toString());
+
+    if(result.error) return result.errorMessage.toString();
 
     // Generate AST
-    const parser = new Parser(result.tokens, file, lexer.line, lexer.col);
+    const parser = new Parser(result.tokens);
     const ast = parser.parse();
+    
+    if(ast.error) return ast.error.toString();
 
+    // Run
+    const interpreter = new Interpreter();
+    const context = new Context('<Program>');
+    const interpretered = interpreter.visit(ast.node, context);
 
-    if(ast.error) return console.log(ast.error.toString());
+    if(interpretered.error) return interpretered.error.toString();
 
-    console.log(ast.node.toString());
+    return interpretered.value.toString();
 
 }

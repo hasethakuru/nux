@@ -1,7 +1,7 @@
 import BinOpNodeManager from "./NodeManager/BinOpNodeManager.js";
 import ParseResult from "./ParserResult.js";
 import { TT } from '../../util/CONSTANTS.js'; 
-import TokenManager from "../TokenManager.js";
+import Token from "../Token.js";
 import UnaryOpNodeManager from "./NodeManager/UnaryOpNodeManager.js";
 import NumberNodeManager from "./NodeManager/NumberNodeManager.js";
 import InvalidSyntaxError from "../../errors/InvalidSyntaxError.js";
@@ -14,12 +14,9 @@ export default class Parser {
      * @param {object} line
      * @param {number} col
      */
-    constructor(tokens, fn, line, col) {
+    constructor(tokens) {
         this.tokens = tokens;
         this.index = -1;
-        this.fn = fn;
-        this.line = line;
-        this.col = col;
         this.advance();
 
     }
@@ -30,7 +27,11 @@ export default class Parser {
     advance () {
         this.index++;
         if(this.index < this.tokens.length) {
+            /**
+             * @type {Token}
+             */
             this.token = this.tokens[this.index];
+
         }
         return this.token;
     }
@@ -40,42 +41,60 @@ export default class Parser {
      */
     parse () {
         const res = this.expr();
-        if(!res.error && TokenManager.getType(this.token) !== TT.EOF) {
-            return res.failure(`File ${this.fn}| Line ${this.line.number} | Column ${this.col}\n Expected '+', '-', '*', '/' or '^'`);
+        if(!res.error && this.token.type !== TT.EOF) {
+            return res.failure(new InvalidSyntaxError(`Expected '+', '-', '*', '/' or '^'`, this.token.start, this.token.end));
         }
 
         return res
     }
 
     /**
+     * Atom
+     */
+    atom () {
+        const res = new ParseResult();
+        const token = this.token;
+
+        if([TT.INT, TT.FLOAT].has(token.type)) {
+            res.register(this.advance());
+            return res.success(new NumberNodeManager(token));
+        } else if(token.type === TT.LPAREN) {
+            res.register(this.advance());
+            let expr = res.register(this.expr());
+            if(res.error) return res;
+            if(this.token.type === TT.RPAREN) {
+                res.register(this.advance());
+                return res.success(expr);
+            } else {
+                return res.failure(new InvalidSyntaxError(`Expected ')'`, this.token.start, this.token.end));
+            };
+        }
+
+        return res.failure(new InvalidSyntaxError(`Expected INT, FLOAT, '+', '-' or '('`, token.start, token.end));
+    }
+
+    /**
      * Factor
      */
     factor () {
-        const res = new ParseResult();
-        const token = this.token;
-        const type = TokenManager.getType(token);
+        let res = new ParseResult();
+        let token = this.token
 
-        if([TT.PLUS, TT.MINUS].has(type)) {
+        if([TT.PLUS, TT.MINUS].has(token.type)) {
             res.register(this.advance());
             let factor = res.register(this.factor());
             if(res.error) return res;
             return res.success(new UnaryOpNodeManager(token, factor));
-        } else if([TT.INT, TT.FLOAT].has(type)) {
-            res.register(this.advance());
-            return res.success(new NumberNodeManager(token));
-        } else if(type === TT.LPAREN) {
-            res.register(this.advance());
-            let expr = res.register(this.expr());
-            if(res.error) return res;
-            if(TokenManager.getType(this.token) === TT.RPAREN) {
-                res.register(this.advance());
-                return res.success(expr);
-            } else {
-                return res.failure(`File ${this.fn}| Line ${this.line.number} | Column ${this.col}\n Expected ')'`);
-            };
         }
 
-        return res.failure(`File ${this.fn}| Line ${this.line.number} | Column ${this.col}\n Expected INT or FLOAT`);
+        return this.power();
+    }
+
+    /**
+     * Power
+     */
+    power() {
+        return this.binOp(this.atom.bind(this), [TT.POWER], this.factor.bind(this))
     }
 
     /**
@@ -97,14 +116,17 @@ export default class Parser {
      * @param {Function} method 
      * @param {string[]} array 
      */
-    binOp(method, array) {
+    binOp(method, array, methodB) {
+        if(!methodB) {
+            methodB = method;
+        }
         const res = new ParseResult();
         let left = res.register(method())
 
-        while (array.includes(this.token)) {
+        while (array.includes(this.token.type)) {
             let operation = this.token
             res.register(this.advance());
-            let right = res.register(method());
+            let right = res.register(methodB());
 
             if(res.error) return res;
 

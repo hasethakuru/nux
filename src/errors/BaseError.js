@@ -1,21 +1,27 @@
+import Position from '../classes/Position.js';
 
 export default class BaseError { 
-    constructor (name, fn, line, col, token, details) {
+    /**
+     * 
+     * @param {string} name 
+     * @param {string} message 
+     * @param {Position} start 
+     * @param {Position} end 
+     */
+    constructor (name, message, start, end) {
         this.name = name;
-        this.fn = fn;
-        this.line = line;
-        this.col = col;
-        this.token = token;
-        this.details = details;
+        this.message = message;
+        this.start = start;
+        this.end = end;
     }
 
     toString() {
-        let error = `${this.name} -> ${this.details}\n`;
-        error+= `File ${this.fn} | Line ${this.line.number} | Column ${this.col}\n\n`;
-        error+= `${this.line.full}\n`
-        error+= ' '.repeat(this.col) + '^'.repeat(this.token.length);
-
+        let error = `${this.name} -> ${this.message}\n`;
+        error+= `File ${this.start.fn} | Line ${this.start.line.number} | Column ${this.start.col}\n\n`;
+        error+= this.end.line.content+'\n';
+        error+= ' '.repeat(this.start.col / this.end.col) + '^'.repeat(Number(this.start.col));
         return error;
     }
+
 
 }

@@ -5,9 +5,13 @@
   "main": "./bin/nux.js",
   "author": "DJ ",
   "type": "module",
-  "bin": {
-    "nux": "./bin/nux.js"
+  "scripts": {
+    "start": "node ."
   },
   "license": "MIT",
-  "private": false
+  "private": false,
+  "dependencies": {
+    "chalk": "^4.1.0",
+    "prompt-sync": "^4.2.0"
+  }
 }

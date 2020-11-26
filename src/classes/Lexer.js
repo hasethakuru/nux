@@ -1,6 +1,7 @@
-import TokenManager from "./TokenManager.js";
+import Token from "./Token.js";
 import { TT, OPERATORS } from '../util/CONSTANTS.js'
 import IllegalCharacterError from "../errors/IllegalCharacterError.js";
+import Position from "./Position.js";
 
 export default class Lexer {
     /**
@@ -25,27 +26,9 @@ export default class Lexer {
         this.token = null;
 
         /**
-         * @type {number}
+         * @type {Position}
          */
-        this.index = -1
-
-        /**
-         * @type {number}
-         */
-        this.col = 0;
-        
-        /**
-         * @typedef {object} Line
-         * @property {number} Number
-         * @property {string} content
-         * @property {string} full
-         * @type {Line}
-         */
-
-        this.line = {
-            number: 1,
-            content: '',
-        }
+        this.position = new Position(-1, { content: '',number: 1}, 0, this.fn, this.text);
 
         this.advance();
     }
@@ -54,10 +37,8 @@ export default class Lexer {
      * Advance to the next character
      */
     advance() {
-        this.index++;
-        this.col++;
-        this.token = this.index < this.text.length ? this.text[this.index] : null;
-        if(this.token) this.line.content+=this.token;
+        this.position.advance(this.token)    
+        this.token = this.position.index < this.text.length ? this.text[this.position.index] : null;
     }
 
     /**
@@ -72,7 +53,7 @@ export default class Lexer {
 
         while (this.token !== null) {
             if(this.token === '\r') {
-                this.advanceLine();
+                this.advance();
                 continue;
             } else if(this.token === ' ') {
                 this.advance();
@@ -81,55 +62,31 @@ export default class Lexer {
                 result.tokens.push(this.createInteger());
                 continue;
             } else if(OPERATORS[this.token]) {
-                result.tokens.push(TokenManager.createToken(TT[OPERATORS[this.token]]));
+                result.tokens.push(new Token(TT[OPERATORS[this.token]], null, this.position));
                 this.advance();
                 continue;
             } else if(this.token === '(') {
-                result.tokens.push(TokenManager.createToken(TT.LPAREN));
+                result.tokens.push(new Token(TT.LPAREN, null, this.position));
                 this.advance();
                 continue;
             } else if(this.token === ')') {
-                result.tokens.push(TokenManager.createToken(TT.RPAREN));
+                result.tokens.push(new Token(TT.RPAREN, null, this.position));
                 this.advance();
                 continue
             } else {
                 let token = this.token;
+                let start = this.position.copy();
                 this.advance();
-                result.error = true,
-                result.errorMessage = `Illegal Character -> ${token}`
+                result.error = true
+                result.errorMessage = new IllegalCharacterError(token, start, this.position);
                 return result;
             }
         }
 
-        result.tokens.push(TT.EOF)
+        result.tokens.push(new Token(TT.EOF, null, this.position))
+
 
         return result;
-    }
-
-    getFullLine() {
-        let i = this.index;
-        let curren = this.line
-        while (this.text[i] !== null) {
-            if (this.text[i] === '\n') {
-                break;
-            }
-
-            curren.content += this.text[i];
-            i++;
-        }
-
-        return curren
-    }
-
-    /**
-     * Advance to the next line
-     */
-    advanceLine() {
-        this.line.number++;
-        this.line.content = '';
-        this.col = 0;
-        this.advance()
-        this.advance();
     }
 
     /**
@@ -139,6 +96,7 @@ export default class Lexer {
         let int = '';
         let dots = 0;
         let digits = TT.DIGITS + '.';
+        let start = this.position.copy();
 
         while (this.token !== null && digits.includes(this.token)) {
             if(this.token === '.') {
@@ -153,7 +111,7 @@ export default class Lexer {
         }
 
         if(dots === 0) {
-            return TokenManager.createToken(TT.INT, Number(int));
-        } else return TokenManager.createToken(TT.FLOAT, parseFloat(int));
+            return new Token(TT.INT, Number(int), start, this.position);
+        } else return new Token(TT.FLOAT, parseFloat(int), start, this.position);
     }
 }
